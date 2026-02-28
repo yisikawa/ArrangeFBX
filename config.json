@@ -1,0 +1,6 @@
+{
+    "subdivision_level": 1,
+    "apply_subdivision_to_all_meshes": true,
+    "merge_vertices": true,
+    "merge_distance": 0.0001
+}

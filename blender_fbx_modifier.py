@@ -2,6 +2,7 @@ import bpy
 import sys
 import os
 import math
+import json
 
 # Blenderをバックグラウンドで実行し、FBXを再構築するスクリプト
 
@@ -129,6 +130,24 @@ def main():
     INPUT_FBX = os.path.join(script_dir, "testFBX", "female.fbx")
     OUTPUT_FBX = os.path.join(script_dir, "testFBX", "female_ue.fbx")
     ANALYSIS_OUTPUT = os.path.join(script_dir, "testFBX", "bone_analysis.txt")
+    CONFIG_FILE = os.path.join(script_dir, "config.json")
+
+    # config.json の読み込み
+    subdivision_level = 0
+    apply_to_all_meshes = True
+    merge_vertices = True
+    merge_distance = 0.0001
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+                subdivision_level = config_data.get("subdivision_level", 0)
+                apply_to_all_meshes = config_data.get("apply_subdivision_to_all_meshes", True)
+                merge_vertices = config_data.get("merge_vertices", True)
+                merge_distance = config_data.get("merge_distance", 0.0001)
+            print(f"Loaded config: subdivision_level={subdivision_level}, merge_vertices={merge_vertices}, merge_distance={merge_distance}")
+        except Exception as e:
+            print(f"Warning: Failed to load config.json: {e}")
 
     if not os.path.exists(INPUT_FBX):
         print(f"ERROR: File not found {INPUT_FBX}")
@@ -190,6 +209,31 @@ def main():
         for b_name in sorted(bone_list):
             f.write(f"- {b_name}\n")
     print(f"Analysis saved to {ANALYSIS_OUTPUT}")
+
+    # 重複頂点の結合 (マージ) - 細分化前処理
+    if merge_vertices:
+        print(f"Merging duplicate vertices (Distance: {merge_distance})...")
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH':
+                bpy.context.view_layer.objects.active = obj
+                obj.select_set(True)
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='SELECT')
+                # 距離でマージ (Remove Doubles)
+                bpy.ops.mesh.remove_doubles(threshold=merge_distance)
+                bpy.ops.object.mode_set(mode='OBJECT')
+                obj.select_set(False)
+
+    # メッシュの細分化処理(Subdivision)
+    if subdivision_level > 0:
+        print(f"Applying Subdivision Surface (Level: {subdivision_level})...")
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH':
+                # モディファイアを追加
+                subsurf = obj.modifiers.new(name="Subdivision", type='SUBSURF')
+                subsurf.levels = subdivision_level
+                subsurf.render_levels = subdivision_level
 
     # FBXエクスポート (Unreal Engine用に最適化された設定)
     print("Exporting to Unreal Engine format...")
