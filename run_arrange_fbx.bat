@@ -23,7 +23,12 @@ echo.
 echo 選択されたファイル: "%INPUT_FBX%"
 echo.
 
-:: 2. Blenderのパスを探す (デフォルトまたは一般的なインストール先)
+:: 2. 独立アプリの実行 (テクスチャアップスケール処理)
+echo [2/3] テクスチャの抽出とアップスケールを実行中... (設定がオンの場合)
+python "%~dp0texture_upscaler.py" --input="%INPUT_FBX%"
+echo.
+
+:: 3. Blenderのパスを探す (デフォルトまたは一般的なインストール先)
 set "BLENDER_PATH=blender"
 if exist "C:\Program Files\Blender Foundation\Blender 4.3\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.3\blender.exe"
 if exist "C:\Program Files\Blender Foundation\Blender 4.2\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.2\blender.exe"
@@ -31,9 +36,9 @@ if exist "C:\Program Files\Blender Foundation\Blender 4.1\blender.exe" set "BLEN
 if exist "C:\Program Files\Blender Foundation\Blender 4.0\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.0\blender.exe"
 if exist "C:\Program Files\Blender Foundation\Blender 3.6\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 3.6\blender.exe"
 
-:: 3. Blenderスクリプトを実行
-echo [2/2] Blenderで処理を実行中... (テクスチャアップスケールがオンの場合は時間がかかります)
-"%BLENDER_PATH%" --background --python blender_fbx_modifier.py -- --input="%INPUT_FBX%"
+:: 4. Blenderスクリプトを実行
+echo [3/3] BlenderでFBX細分化と統合処理を実行中...
+"%BLENDER_PATH%" --background --python "%~dp0blender_fbx_modifier.py" -- --input="%INPUT_FBX%"
 
 echo.
 echo =============================================
