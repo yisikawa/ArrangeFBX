@@ -6,6 +6,7 @@ import json
 import base64
 import urllib.request
 import urllib.error
+import argparse
 
 # Blenderをバックグラウンドで実行し、FBXを再構築するスクリプト
 
@@ -220,9 +221,33 @@ def guess_bone_mapping(armature_obj):
 
 def main():
     script_dir = get_script_dir()
-    INPUT_FBX = os.path.join(script_dir, "testFBX", "female.fbx")
-    OUTPUT_FBX = os.path.join(script_dir, "testFBX", "female_ue.fbx")
-    ANALYSIS_OUTPUT = os.path.join(script_dir, "testFBX", "bone_analysis.txt")
+    
+    # 引数のパース (blender自身の引数と分けるため、 '--' 以降を取得)
+    argv = sys.argv
+    if "--" in argv:
+        argv = argv[argv.index("--") + 1:]
+    else:
+        argv = []
+
+    parser = argparse.ArgumentParser(description="ArrangeFBX")
+    parser.add_argument("--input", type=str, help="Input FBX file path")
+    parser.add_argument("--output", type=str, help="Output FBX file path (Optional)")
+    args, _ = parser.parse_known_args(argv)
+
+    if args.input:
+        INPUT_FBX = args.input
+        if args.output:
+            OUTPUT_FBX = args.output
+        else:
+            base_path, ext = os.path.splitext(INPUT_FBX)
+            OUTPUT_FBX = f"{base_path}_ue{ext}"
+        ANALYSIS_OUTPUT = os.path.join(os.path.dirname(INPUT_FBX), "bone_analysis.txt")
+    else:
+        # 引数がない場合は従来の動作（テスト用）
+        INPUT_FBX = os.path.join(script_dir, "testFBX", "female.fbx")
+        OUTPUT_FBX = os.path.join(script_dir, "testFBX", "female_ue.fbx")
+        ANALYSIS_OUTPUT = os.path.join(script_dir, "testFBX", "bone_analysis.txt")
+
     CONFIG_FILE = os.path.join(script_dir, "config.json")
 
     # config.json の読み込み
