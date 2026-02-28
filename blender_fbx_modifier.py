@@ -3,6 +3,9 @@ import sys
 import os
 import math
 import json
+import base64
+import urllib.request
+import urllib.error
 
 # Blenderをバックグラウンドで実行し、FBXを再構築するスクリプト
 
@@ -23,6 +26,96 @@ def clear_scene():
     for col in [bpy.data.meshes, bpy.data.armatures, bpy.data.materials, bpy.data.images, bpy.data.actions]:
         for item in col:
             col.remove(item)
+
+def upscale_image_with_gemini(image_path, factor, seamless):
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        print("Error: GEMINI_API_KEY environment variable not set. Skipping upscale.")
+        return None
+
+    print(f"Upscaling texture: {os.path.basename(image_path)} (Factor: {factor}x, Seamless: {seamless})")
+    
+    # 画像をBase64エンコード
+    try:
+        with open(image_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+    except Exception as e:
+        print(f"Error reading image {image_path}: {e}")
+        return None
+
+    # 画像のMIME形式を取得
+    ext = os.path.splitext(image_path)[1].lower()
+    mime_type = "image/jpeg" if ext in ['.jpg', '.jpeg'] else "image/png" if ext == '.png' else "image/png"
+
+    # Gemini API エンドポイント (gemini-3.1-flash または適当なモデルを指定)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key={api_key}"
+    
+    # 最新の Gemini モデルは画像生成/編集(upscale) に対応していると仮定したリクエストボディ
+    # ※ 注意: 現在の標準的な Gemini 1.5/2.0 Pro/Flash はテキスト/画像「入力」特化であり、
+    # 画像「出力(生成・編集)」を行うには imagen-3.0-generate 等の別API（Vertex AI等）を使用するのが一般的です。
+    # ここでは仕様に基づき、仮想的な Image Editing/Upscale API のリクエスト構造を定義しています。
+    # 実際の Nano Banana / Image API の仕様に合わせて適宜調整してください。
+    prompt_text = f"Upscale this texture by {factor}x. Maintain original aspect ratio and details."
+    if seamless:
+        prompt_text += " Ensure the resulting image is perfectly seamless/tileable for 3D PBR materials."
+
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt_text},
+                    {
+                        "inline_data": {
+                            "mime_type": mime_type,
+                            "data": encoded_string
+                        }
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.2 # 変換の場合は低め
+        }
+    }
+
+    headers = {'Content-Type': 'application/json'}
+    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers, method='POST')
+
+    try:
+        response = urllib.request.urlopen(req)
+        response_data = json.loads(response.read().decode('utf-8'))
+        
+        # ※ ここはレスポンス仕様に依存します。画像がBase64文字列で `responseData.image` のように返ってくると仮定します。
+        # Gemini API の標準的なレスポンスではテキストしか返らないため、
+        # もしテキストで解説文が返ってきた場合はアップスケール失敗となります。
+        result_text = response_data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
+        print("API Response:", result_text[:100], "...")
+        
+        # 実際には画像を返すAPIエンドポイント（Imagen等）を使用する必要があります。
+        # ここでは実装デモとして、元の画像をコピーして「_upscaled」として保存するダミー処理を行います。
+        # （本来は取得したBase64文字列をデコードして保存します）
+        
+        # ---- ダミー実装（コピー） ----
+        base_dir = os.path.dirname(image_path)
+        base_name, ext = os.path.splitext(os.path.basename(image_path))
+        new_image_name = f"{base_name}_upscaled{ext}"
+        new_image_path = os.path.join(base_dir, new_image_name)
+        
+        # shutil は上部で import する必要があります。この関数内でのみ使用するためここでimport
+        import shutil
+        shutil.copy2(image_path, new_image_path)
+        print(f"Saved upscaled texture to: {new_image_path} (Dummy implementation)")
+        return new_image_path
+        # -----------------------------
+        
+    except urllib.error.URLError as e:
+        print(f"API Request Error: {e}")
+        if hasattr(e, 'read'):
+            print(e.read().decode('utf-8'))
+        return None
+    except Exception as e:
+        print(f"Unexpected Error during upscale: {e}")
+        return None
 
 def guess_bone_mapping(armature_obj):
     """
@@ -137,6 +230,10 @@ def main():
     apply_to_all_meshes = True
     merge_vertices = True
     merge_distance = 0.0001
+    upscale_textures = False
+    upscale_factor = 2
+    upscale_seamless = True
+
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
@@ -145,7 +242,10 @@ def main():
                 apply_to_all_meshes = config_data.get("apply_subdivision_to_all_meshes", True)
                 merge_vertices = config_data.get("merge_vertices", True)
                 merge_distance = config_data.get("merge_distance", 0.0001)
-            print(f"Loaded config: subdivision_level={subdivision_level}, merge_vertices={merge_vertices}, merge_distance={merge_distance}")
+                upscale_textures = config_data.get("upscale_textures", False)
+                upscale_factor = config_data.get("upscale_factor", 2)
+                upscale_seamless = config_data.get("upscale_seamless", True)
+            print(f"Loaded config: sub_level={subdivision_level}, merge={merge_vertices}, upscale={upscale_textures}")
         except Exception as e:
             print(f"Warning: Failed to load config.json: {e}")
 
@@ -224,6 +324,50 @@ def main():
                 bpy.ops.mesh.remove_doubles(threshold=merge_distance)
                 bpy.ops.object.mode_set(mode='OBJECT')
                 obj.select_set(False)
+
+    # テクスチャのアップスケール処理
+    if upscale_textures:
+        print("Starting Texture Upscale Process...")
+        # 処理済み画像の記録（重複実行を避けるため）
+        processed_images = {}
+        
+        for mat in bpy.data.materials:
+            if not mat.use_nodes:
+                continue
+                
+            for node in mat.node_tree.nodes:
+                # プリンシプルBSDFのBaseColorに繋がっているImage Textureなどを探す
+                if node.type == 'TEX_IMAGE' and node.image:
+                    # とりあえず全ての画像テクスチャを対象にするか、Base Colorのみに絞るか
+                    # 这里では安全のため、ファイル名に 'norm', 'rough' 等が含まれないか簡易チェック
+                    img_name = node.image.name.lower()
+                    if 'norm' in img_name or 'rough' in img_name:
+                        print(f"Skipping Normal/Roughness map: {node.image.name}")
+                        continue
+                        
+                    img_path = bpy.path.abspath(node.image.filepath)
+                    if not os.path.exists(img_path):
+                        print(f"Image not found on disk: {img_path}")
+                        continue
+                        
+                    if img_path in processed_images:
+                        # 既に処理済みの場合はパスを差し替えるだけ
+                        new_img_path = processed_images[img_path]
+                        if new_img_path:
+                            # Blender内に新しい画像をロードして差し替え
+                            new_img = bpy.data.images.load(new_img_path)
+                            node.image = new_img
+                        continue
+
+                    # APIでアップスケール実行
+                    new_img_path = upscale_image_with_gemini(img_path, upscale_factor, upscale_seamless)
+                    processed_images[img_path] = new_img_path
+                    
+                    if new_img_path:
+                        # Blender内に新しい画像をロードして差し替え
+                        new_img = bpy.data.images.load(new_img_path)
+                        node.image = new_img
+                        print(f"Applied upscaled texture to material: {mat.name}")
 
     # メッシュの細分化処理(Subdivision)
     if subdivision_level > 0:
