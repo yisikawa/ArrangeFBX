@@ -25,13 +25,23 @@ Blenderの実行ファイル（`blender.exe`）にパスが通っているか、
   * `1`: 1度細分化します（ポリゴン数が増加し、滑らかなシルエットになります）。
   * `2`以上: さらに細分化しますが、ファイルサイズが急増するため注意してください。
 
-### 実行手順
+### 実行手順（おすすめ）
 
-1. コマンドプロンプトまたはPowerShellでこのフォルダに移動します。
-2. Blenderをバックグラウンドで起動し、スクリプトを実行します（お使いの環境に合わせてBlenderのパスを指定してください）：
-   ```powershell
-   # 例: Blender 4.3 がデフォルトの場所にインストールされている場合
-   & "C:\Program Files\Blender Foundation\Blender 4.3\blender.exe" --background --python blender_fbx_modifier.py
-   ```
-3. スクリプトが完了すると、`testFBX/female_ue.fbx` が生成されます。また `testFBX/bone_analysis.txt` に元のボーンとリネーム結果の一覧が出力されます。
-4. ボーン名の手動対応が必要な場合は、`blender_fbx_modifier.py` をエディタで開き、上部にある `BONE_NAME_MAPPING` 辞書に元の名前とUE用ボーン名の対応表を追記して、再度実行してください。
+同梱のバッチファイルを利用すると、ファイルのパスを意識せずにGUIから直感的に処理を実行できます。
+
+1. **`run_arrange_fbx.bat`** をダブルクリックして実行します。
+2. ファイル選択ダイアログが表示されるので、細分化・処理を行いたい `.fbx` ファイルを選択します。
+3. 自動的にBlenderがバックグラウンドで起動し、処理が進行します。（`config.json` で `upscale_textures` をオンにしているとGemini APIとの通信で時間がかかります）
+4. 処理が完了すると、元のファイルと同じ場所に `_ue` がファイル名に付加された完成版FBXが出力されます。
+
+---
+
+### コマンドラインからの実行手順（手動・自動化用）
+
+スクリプトに直接引数を渡して実行することも可能です。
+```powershell
+# 例: Blender 4.3 がデフォルトの場所にインストールされている場合
+& "C:\Program Files\Blender Foundation\Blender 4.3\blender.exe" --background --python blender_fbx_modifier.py -- --input="C:\path\to\your\model.fbx" --output="C:\path\to\your\model_ue.fbx"
+```
+
+ボーン名の手動対応が必要な場合は、`blender_fbx_modifier.py` をエディタで開き、上部にある `BONE_NAME_MAPPING` 辞書に元の名前とUE用ボーン名の対応表を追記して、再度実行してください。
