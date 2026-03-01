@@ -7,6 +7,22 @@ import argparse
 
 # Blenderをバックグラウンドで実行し、FBXを再構築するスクリプト
 
+BONE_NAME_MAPPING = {}
+
+def clear_scene():
+    # シーン内の全オブジェクトを削除
+    if bpy.context.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+def get_script_dir():
+    try:
+        return os.path.dirname(os.path.realpath(__file__))
+    except NameError:
+        # __file__ が未定義の場合（Blender内のテキストエディタからの実行時など）
+        return os.path.dirname(os.path.abspath(bpy.data.filepath)) if bpy.data.filepath else os.getcwd()
+
 def guess_bone_mapping(armature_obj):
     """
     ボーンの階層構造と座標(左右)から、Unreal Engine標準ボーン名を推測してマッピングを生成する。
@@ -144,9 +160,6 @@ def main():
     apply_to_all_meshes = True
     merge_vertices = True
     merge_distance = 0.0001
-    upscale_textures = False
-    upscale_factor = 2
-    upscale_seamless = True
 
     if os.path.exists(CONFIG_FILE):
         try:
@@ -156,10 +169,7 @@ def main():
                 apply_to_all_meshes = config_data.get("apply_subdivision_to_all_meshes", True)
                 merge_vertices = config_data.get("merge_vertices", True)
                 merge_distance = config_data.get("merge_distance", 0.0001)
-                upscale_textures = config_data.get("upscale_textures", False)
-                upscale_factor = config_data.get("upscale_factor", 2)
-                upscale_seamless = config_data.get("upscale_seamless", True)
-            print(f"Loaded config: sub_level={subdivision_level}, merge={merge_vertices}, upscale={upscale_textures}")
+            print(f"Loaded config: sub_level={subdivision_level}, merge={merge_vertices}")
         except Exception as e:
             print(f"Warning: Failed to load config.json: {e}")
 
@@ -234,35 +244,10 @@ def main():
                 obj.select_set(True)
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_all(action='SELECT')
-                # 距離でマージ (Remove Doubles)
+                # 距離でマージ (Remove Doubles / Merge by Distance)
                 bpy.ops.mesh.remove_doubles(threshold=merge_distance)
                 bpy.ops.object.mode_set(mode='OBJECT')
                 obj.select_set(False)
-
-    # 生成されたアップスケール画像の自動割り当て処理
-    if upscale_textures:
-        print("Checking for upscaled textures to apply...")
-        
-        for mat in bpy.data.materials:
-            if not mat.use_nodes:
-                continue
-                
-            for node in mat.node_tree.nodes:
-                if node.type == 'TEX_IMAGE' and node.image:
-                    img_path = bpy.path.abspath(node.image.filepath)
-                    if not os.path.exists(img_path):
-                        continue
-                        
-                    # 対応する _upscaled 画像が存在するか確認
-                    base_dir = os.path.dirname(img_path)
-                    base_name, file_ext = os.path.splitext(os.path.basename(img_path))
-                    upscaled_image_path = os.path.join(base_dir, f"{base_name}_upscaled{file_ext}")
-                    
-                    if os.path.exists(upscaled_image_path):
-                        # Blender内に新しい画像をロードして既存の画像から差し替え
-                        new_img = bpy.data.images.load(upscaled_image_path)
-                        node.image = new_img
-                        print(f"Applied upscaled texture ({os.path.basename(upscaled_image_path)}) to material: {mat.name}")
 
     # メッシュの細分化処理(Subdivision)
     if subdivision_level > 0:

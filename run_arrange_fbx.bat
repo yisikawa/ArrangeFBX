@@ -1,34 +1,28 @@
 @echo off
-chcp 65001 > nul
 echo =============================================
-echo  ArrangeFBX - FBXè‡ªå‹•å‡¦ç†ã¨ã‚¢ãƒƒãƒ—ã‚¹ã‚±ãƒ¼ãƒ«ãƒ„ãƒ¼ãƒ«
+echo  ArrangeFBX - FBX©“®ˆ—‚ÆƒAƒbƒvƒXƒP[ƒ‹ƒc[ƒ‹
 echo =============================================
 echo.
 
-:: 1. PowerShellã§ãƒ•ã‚¡ã‚¤ãƒ«é¸æŠãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã‚’èµ·å‹•
-echo [1/2] å‡¦ç†å¯¾è±¡ã®FBXãƒ•ã‚¡ã‚¤ãƒ«ã‚’é¸æŠã—ã¦ãã ã•ã„...
+:: 1. PowerShell‚Åƒtƒ@ƒCƒ‹‘I‘ğƒ_ƒCƒAƒƒO‚ğ‹N“®
+echo [1/2] ˆ—‘ÎÛ‚ÌFBXƒtƒ@ƒCƒ‹‚ğ‘I‘ğ‚µ‚Ä‚­‚¾‚³‚¢...
 set "INPUT_FBX="
-for /f "usebackq tokens=*" %%i in (`powershell -Command "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.OpenFileDialog; $f.Filter = 'FBX Files (*.fbx)|*.fbx|All Files (*.*)|*.*'; $f.Title = 'å‡¦ç†å¯¾è±¡ã®FBXãƒ•ã‚¡ã‚¤ãƒ«ã‚’é¸æŠã—ã¦ãã ã•ã„'; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.FileName }"`) do set "INPUT_FBX=%%i"
+for /f "usebackq tokens=*" %%i in (`powershell -Command "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.OpenFileDialog; $f.Filter = 'FBX Files (*.fbx)|*.fbx|All Files (*.*)|*.*'; $f.Title = 'ˆ—‘ÎÛ‚ÌFBXƒtƒ@ƒCƒ‹‚ğ‘I‘ğ‚µ‚Ä‚­‚¾‚³‚¢'; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.FileName }"`) do set "INPUT_FBX=%%i"
 
-:: ã‚­ãƒ£ãƒ³ã‚»ãƒ«åˆ¤å®š
+:: ƒLƒƒƒ“ƒZƒ‹”»’è
 if "%INPUT_FBX%"=="" (
     echo.
-    echo [ã‚­ãƒ£ãƒ³ã‚»ãƒ«] ãƒ•ã‚¡ã‚¤ãƒ«ãŒé¸æŠã•ã‚Œã¾ã›ã‚“ã§ã—ãŸã€‚å‡¦ç†ã‚’çµ‚äº†ã—ã¾ã™ã€‚
+    echo [ƒLƒƒƒ“ƒZƒ‹] ƒtƒ@ƒCƒ‹‚ª‘I‘ğ‚³‚ê‚Ü‚¹‚ñ‚Å‚µ‚½Bˆ—‚ğI—¹‚µ‚Ü‚·B
     echo.
     pause
     exit /b
 )
 
 echo.
-echo é¸æŠã•ã‚ŒãŸãƒ•ã‚¡ã‚¤ãƒ«: "%INPUT_FBX%"
+echo ‘I‘ğ‚³‚ê‚½ƒtƒ@ƒCƒ‹: "%INPUT_FBX%"
 echo.
 
-:: 2. ç‹¬ç«‹ã‚¢ãƒ—ãƒªã®å®Ÿè¡Œ (ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚¢ãƒƒãƒ—ã‚¹ã‚±ãƒ¼ãƒ«å‡¦ç†)
-echo [2/3] ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®æŠ½å‡ºã¨ã‚¢ãƒƒãƒ—ã‚¹ã‚±ãƒ¼ãƒ«ã‚’å®Ÿè¡Œä¸­... (è¨­å®šãŒã‚ªãƒ³ã®å ´åˆ)
-python "%~dp0texture_upscaler.py" --input="%INPUT_FBX%"
-echo.
-
-:: 3. Blenderã®ãƒ‘ã‚¹ã‚’æ¢ã™ (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã¾ãŸã¯ä¸€èˆ¬çš„ãªã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«å…ˆ)
+:: 2. Blender‚ÌƒpƒX‚ğ’T‚· (ƒfƒtƒHƒ‹ƒg‚Ü‚½‚Íˆê”Ê“I‚ÈƒCƒ“ƒXƒg[ƒ‹æ)
 set "BLENDER_PATH=blender"
 if exist "C:\Program Files\Blender Foundation\Blender 4.3\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.3\blender.exe"
 if exist "C:\Program Files\Blender Foundation\Blender 4.2\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.2\blender.exe"
@@ -36,12 +30,12 @@ if exist "C:\Program Files\Blender Foundation\Blender 4.1\blender.exe" set "BLEN
 if exist "C:\Program Files\Blender Foundation\Blender 4.0\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.0\blender.exe"
 if exist "C:\Program Files\Blender Foundation\Blender 3.6\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 3.6\blender.exe"
 
-:: 4. Blenderã‚¹ã‚¯ãƒªãƒ—ãƒˆã‚’å®Ÿè¡Œ
-echo [3/3] Blenderã§FBXç´°åˆ†åŒ–ã¨çµ±åˆå‡¦ç†ã‚’å®Ÿè¡Œä¸­...
+:: 3. BlenderƒXƒNƒŠƒvƒg‚ğÀs
+echo [2/2] Blender‚ÅFBX×•ª‰»‚Æ“‡ˆ—‚ğÀs’†...
 "%BLENDER_PATH%" --background --python "%~dp0blender_fbx_modifier.py" -- --input="%INPUT_FBX%"
 
 echo.
 echo =============================================
-echo å‡¦ç†ãŒå®Œäº†ã—ã¾ã—ãŸï¼
+echo ˆ—‚ªŠ®—¹‚µ‚Ü‚µ‚½I
 echo =============================================
 pause
