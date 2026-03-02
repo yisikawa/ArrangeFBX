@@ -258,6 +258,8 @@ def main():
                 subsurf = obj.modifiers.new(name="Subdivision", type='SUBSURF')
                 subsurf.levels = subdivision_level
                 subsurf.render_levels = subdivision_level
+                # スムージングを無効化し、形状を維持したまま細分化(Simple)
+                subsurf.subdivision_type = 'SIMPLE'
 
     # FBXエクスポート (Unreal Engine用に最適化された設定)
     print("Exporting to Unreal Engine format...")
