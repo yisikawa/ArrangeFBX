@@ -3,7 +3,10 @@
     "apply_subdivision_to_all_meshes": true,
     "merge_vertices": true,
     "merge_distance": 0.0001,
-    "upscale_textures": true,
-    "upscale_factor": 2,
-    "upscale_seamless": true
+    "texture_scale_factor": 4.0,
+    "texture_resize_interpolation": "bicubic",
+    "use_bilateral_filter": true,
+    "bilateral_d": 9,
+    "bilateral_sigma_color": 75.0,
+    "bilateral_sigma_space": 75.0
 }

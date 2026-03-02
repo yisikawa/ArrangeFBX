@@ -24,16 +24,13 @@ echo 選択されたファイル: "%INPUT_FBX%"
 echo.
 
 :: 2. Blenderのパスを探す (デフォルトまたは一般的なインストール先)
-set "BLENDER_PATH=blender"
-if exist "C:\Program Files\Blender Foundation\Blender 4.3\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.3\blender.exe"
-if exist "C:\Program Files\Blender Foundation\Blender 4.2\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.2\blender.exe"
-if exist "C:\Program Files\Blender Foundation\Blender 4.1\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.1\blender.exe"
-if exist "C:\Program Files\Blender Foundation\Blender 4.0\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.0\blender.exe"
-if exist "C:\Program Files\Blender Foundation\Blender 3.6\blender.exe" set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 3.6\blender.exe"
+:: Blenderの実行ファイルパス (環境変数にPATHが通っていない場合は絶対パスを指定)
+:: 例: set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.3\blender.exe"
+set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.3\blender.exe"
 
 :: 3. Blenderスクリプトを実行
-echo [2/2] Blenderで処理を実行中... (テクスチャアップスケールがオンの場合は時間がかかります)
-"%BLENDER_PATH%" --background --python blender_fbx_modifier.py -- --input="%INPUT_FBX%"
+echo [2/2] BlenderでFBX細分化と統合処理を実行中...
+"%BLENDER_PATH%" --background --python "%~dp0blender_fbx_modifier.py" -- --input="%INPUT_FBX%"
 
 echo.
 echo =============================================

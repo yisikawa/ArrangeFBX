@@ -3,120 +3,25 @@ import sys
 import os
 import math
 import json
-import base64
-import urllib.request
-import urllib.error
 import argparse
 
 # Blenderをバックグラウンドで実行し、FBXを再構築するスクリプト
 
-# 手動マッピング（自動判定より優先されます）
-BONE_NAME_MAPPING = {
-    # 例: "Bone000": "root",
-}
-
-def get_script_dir():
-    for arg in sys.argv:
-        if arg.endswith('.py'):
-            return os.path.dirname(os.path.abspath(arg))
-    return os.getcwd()
+BONE_NAME_MAPPING = {}
 
 def clear_scene():
+    # シーン内の全オブジェクトを削除
+    if bpy.context.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete()
-    for col in [bpy.data.meshes, bpy.data.armatures, bpy.data.materials, bpy.data.images, bpy.data.actions]:
-        for item in col:
-            col.remove(item)
 
-def upscale_image_with_gemini(image_path, factor, seamless):
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("Error: GEMINI_API_KEY environment variable not set. Skipping upscale.")
-        return None
-
-    print(f"Upscaling texture: {os.path.basename(image_path)} (Factor: {factor}x, Seamless: {seamless})")
-    
-    # 画像をBase64エンコード
+def get_script_dir():
     try:
-        with open(image_path, "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-    except Exception as e:
-        print(f"Error reading image {image_path}: {e}")
-        return None
-
-    # 画像のMIME形式を取得
-    ext = os.path.splitext(image_path)[1].lower()
-    mime_type = "image/jpeg" if ext in ['.jpg', '.jpeg'] else "image/png" if ext == '.png' else "image/png"
-
-    # Gemini API エンドポイント (gemini-3.1-flash または適当なモデルを指定)
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key={api_key}"
-    
-    # 最新の Gemini モデルは画像生成/編集(upscale) に対応していると仮定したリクエストボディ
-    # ※ 注意: 現在の標準的な Gemini 1.5/2.0 Pro/Flash はテキスト/画像「入力」特化であり、
-    # 画像「出力(生成・編集)」を行うには imagen-3.0-generate 等の別API（Vertex AI等）を使用するのが一般的です。
-    # ここでは仕様に基づき、仮想的な Image Editing/Upscale API のリクエスト構造を定義しています。
-    # 実際の Nano Banana / Image API の仕様に合わせて適宜調整してください。
-    prompt_text = f"Upscale this texture by {factor}x. Maintain original aspect ratio and details."
-    if seamless:
-        prompt_text += " Ensure the resulting image is perfectly seamless/tileable for 3D PBR materials."
-
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": prompt_text},
-                    {
-                        "inline_data": {
-                            "mime_type": mime_type,
-                            "data": encoded_string
-                        }
-                    }
-                ]
-            }
-        ],
-        "generationConfig": {
-            "temperature": 0.2 # 変換の場合は低め
-        }
-    }
-
-    headers = {'Content-Type': 'application/json'}
-    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers, method='POST')
-
-    try:
-        response = urllib.request.urlopen(req)
-        response_data = json.loads(response.read().decode('utf-8'))
-        
-        # ※ ここはレスポンス仕様に依存します。画像がBase64文字列で `responseData.image` のように返ってくると仮定します。
-        # Gemini API の標準的なレスポンスではテキストしか返らないため、
-        # もしテキストで解説文が返ってきた場合はアップスケール失敗となります。
-        result_text = response_data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
-        print("API Response:", result_text[:100], "...")
-        
-        # 実際には画像を返すAPIエンドポイント（Imagen等）を使用する必要があります。
-        # ここでは実装デモとして、元の画像をコピーして「_upscaled」として保存するダミー処理を行います。
-        # （本来は取得したBase64文字列をデコードして保存します）
-        
-        # ---- ダミー実装（コピー） ----
-        base_dir = os.path.dirname(image_path)
-        base_name, ext = os.path.splitext(os.path.basename(image_path))
-        new_image_name = f"{base_name}_upscaled{ext}"
-        new_image_path = os.path.join(base_dir, new_image_name)
-        
-        # shutil は上部で import する必要があります。この関数内でのみ使用するためここでimport
-        import shutil
-        shutil.copy2(image_path, new_image_path)
-        print(f"Saved upscaled texture to: {new_image_path} (Dummy implementation)")
-        return new_image_path
-        # -----------------------------
-        
-    except urllib.error.URLError as e:
-        print(f"API Request Error: {e}")
-        if hasattr(e, 'read'):
-            print(e.read().decode('utf-8'))
-        return None
-    except Exception as e:
-        print(f"Unexpected Error during upscale: {e}")
-        return None
+        return os.path.dirname(os.path.realpath(__file__))
+    except NameError:
+        # __file__ が未定義の場合（Blender内のテキストエディタからの実行時など）
+        return os.path.dirname(os.path.abspath(bpy.data.filepath)) if bpy.data.filepath else os.getcwd()
 
 def guess_bone_mapping(armature_obj):
     """
@@ -219,6 +124,77 @@ def guess_bone_mapping(armature_obj):
 
     return mapping
 
+def process_texture_with_opencv(img, texture_scale, cv2_interp, use_bilateral_filter, bilateral_d, bilateral_sigma_color, bilateral_sigma_space):
+    """
+    OpenCVを用いてBlender内部のテクスチャピクセルデータを直接リサイズ・フィルタリングする関数。
+    (cv2.imreadでは失われがちなBMPのアルファチャンネルを完璧に保持するため)
+    """
+    import cv2
+    import numpy as np
+    
+    try:
+        if not img.has_data:
+            return False
+            
+        orig_w, orig_h = img.size
+        # サイズが0または1x1などの場合は無効/不要と判定
+        if orig_w <= 1 or orig_h <= 1:
+            return False
+            
+        new_w = int(orig_w * texture_scale)
+        new_h = int(orig_h * texture_scale)
+        
+        # Blenderの画像は常に Float32 の RGBA (W * H * 4 チャンネル)
+        pixels = np.zeros(orig_w * orig_h * 4, dtype=np.float32)
+        img.pixels.foreach_get(pixels)
+        
+        # NumPy配列の形状を (高さ, 幅, 4) に変換
+        pixels = pixels.reshape((orig_h, orig_w, 4))
+        
+        # カラー(RGB)と透過(Alpha)を分離 (BlenderはRGBA順)
+        r = pixels[:, :, 0]
+        g = pixels[:, :, 1]
+        b = pixels[:, :, 2]
+        a = pixels[:, :, 3]
+        
+        # OpenCVのフィルタ用にBGRを作成し、0-255(uint8)スケールに変換
+        bgr = np.dstack((b, g, r))
+        bgr_uint8 = np.clip(bgr * 255.0, 0, 255).astype(np.uint8)
+        
+        # RGB(BGR)カラー群のみ指定されたアルゴリズムでリサイズ
+        resized_bgr = cv2.resize(bgr_uint8, (new_w, new_h), interpolation=cv2_interp)
+        
+        # アルファチャンネルは値が変わる(滲みが出る)のを防ぐため、必ずNEAREST(ニアレストネイバー)でリサイズ
+        # (Alphaはfloat32のままでリサイズ)
+        resized_a = cv2.resize(a, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+        
+        # リサイズ後にバイラテラルフィルタを適用 (エッジを保持した平滑化)
+        if use_bilateral_filter:
+            resized_bgr = cv2.bilateralFilter(resized_bgr, bilateral_d, bilateral_sigma_color, bilateral_sigma_space)
+            
+        # 処理後にRGB(BGR)をFloat32に戻し、Alphaと再結合する
+        resized_bgr_float = resized_bgr.astype(np.float32) / 255.0
+        new_r = resized_bgr_float[:, :, 2]
+        new_g = resized_bgr_float[:, :, 1]
+        new_b = resized_bgr_float[:, :, 0]
+        resized_rgba = np.dstack((new_r, new_g, new_b, resized_a))
+        
+        # ==== 処理結果をBlender画像メモリに上書き ====
+        # まずスケールを合わせてバッファを広げる
+        img.scale(new_w, new_h)
+        # 一次元配列に戻して流し込む
+        img.pixels.foreach_set(resized_rgba.flatten())
+        
+        # ファイルに保存 (Blenderの保存機能を使うため、BMPなどのAlpha対応がBlender基準で維持される)
+        img.save()
+        
+        print(f" - Resized {img.name}: {orig_w}x{orig_h} -> {new_w}x{new_h} (via OpenCV & Blender API)")
+        return True
+        
+    except Exception as e:
+        print(f" - Warning: Failed to resize {img.name} using OpenCV. {e}")
+        return False
+
 def main():
     script_dir = get_script_dir()
     
@@ -255,9 +231,11 @@ def main():
     apply_to_all_meshes = True
     merge_vertices = True
     merge_distance = 0.0001
-    upscale_textures = False
-    upscale_factor = 2
-    upscale_seamless = True
+    
+    use_bilateral_filter = False
+    bilateral_d = 9
+    bilateral_sigma_color = 75.0
+    bilateral_sigma_space = 75.0
 
     if os.path.exists(CONFIG_FILE):
         try:
@@ -267,10 +245,16 @@ def main():
                 apply_to_all_meshes = config_data.get("apply_subdivision_to_all_meshes", True)
                 merge_vertices = config_data.get("merge_vertices", True)
                 merge_distance = config_data.get("merge_distance", 0.0001)
-                upscale_textures = config_data.get("upscale_textures", False)
-                upscale_factor = config_data.get("upscale_factor", 2)
-                upscale_seamless = config_data.get("upscale_seamless", True)
-            print(f"Loaded config: sub_level={subdivision_level}, merge={merge_vertices}, upscale={upscale_textures}")
+                texture_scale = config_data.get("texture_scale_factor", 1.0)
+                texture_interp = config_data.get("texture_resize_interpolation", "bicubic")
+                
+                # Bilateral Filter (ジャギー補正) 設定
+                use_bilateral_filter = config_data.get("use_bilateral_filter", False)
+                bilateral_d = config_data.get("bilateral_d", 9)
+                bilateral_sigma_color = config_data.get("bilateral_sigma_color", 75.0)
+                bilateral_sigma_space = config_data.get("bilateral_sigma_space", 75.0)
+                
+            print(f"Loaded config: sub_level={subdivision_level}, merge={merge_vertices}, texture_scale={texture_scale}, texture_interp={texture_interp}, bilateral={use_bilateral_filter}")
         except Exception as e:
             print(f"Warning: Failed to load config.json: {e}")
 
@@ -345,54 +329,10 @@ def main():
                 obj.select_set(True)
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_all(action='SELECT')
-                # 距離でマージ (Remove Doubles)
+                # 距離でマージ (Remove Doubles / Merge by Distance)
                 bpy.ops.mesh.remove_doubles(threshold=merge_distance)
                 bpy.ops.object.mode_set(mode='OBJECT')
                 obj.select_set(False)
-
-    # テクスチャのアップスケール処理
-    if upscale_textures:
-        print("Starting Texture Upscale Process...")
-        # 処理済み画像の記録（重複実行を避けるため）
-        processed_images = {}
-        
-        for mat in bpy.data.materials:
-            if not mat.use_nodes:
-                continue
-                
-            for node in mat.node_tree.nodes:
-                # プリンシプルBSDFのBaseColorに繋がっているImage Textureなどを探す
-                if node.type == 'TEX_IMAGE' and node.image:
-                    # とりあえず全ての画像テクスチャを対象にするか、Base Colorのみに絞るか
-                    # 这里では安全のため、ファイル名に 'norm', 'rough' 等が含まれないか簡易チェック
-                    img_name = node.image.name.lower()
-                    if 'norm' in img_name or 'rough' in img_name:
-                        print(f"Skipping Normal/Roughness map: {node.image.name}")
-                        continue
-                        
-                    img_path = bpy.path.abspath(node.image.filepath)
-                    if not os.path.exists(img_path):
-                        print(f"Image not found on disk: {img_path}")
-                        continue
-                        
-                    if img_path in processed_images:
-                        # 既に処理済みの場合はパスを差し替えるだけ
-                        new_img_path = processed_images[img_path]
-                        if new_img_path:
-                            # Blender内に新しい画像をロードして差し替え
-                            new_img = bpy.data.images.load(new_img_path)
-                            node.image = new_img
-                        continue
-
-                    # APIでアップスケール実行
-                    new_img_path = upscale_image_with_gemini(img_path, upscale_factor, upscale_seamless)
-                    processed_images[img_path] = new_img_path
-                    
-                    if new_img_path:
-                        # Blender内に新しい画像をロードして差し替え
-                        new_img = bpy.data.images.load(new_img_path)
-                        node.image = new_img
-                        print(f"Applied upscaled texture to material: {mat.name}")
 
     # メッシュの細分化処理(Subdivision)
     if subdivision_level > 0:
@@ -403,6 +343,81 @@ def main():
                 subsurf = obj.modifiers.new(name="Subdivision", type='SUBSURF')
                 subsurf.levels = subdivision_level
                 subsurf.render_levels = subdivision_level
+                # スムージングを無効化し、形状を維持したまま細分化(Simple)
+                subsurf.subdivision_type = 'SIMPLE'
+
+    # テクスチャ画像の解像度スケール処理
+    if texture_scale != 1.0 and texture_scale > 0:
+        print(f"Resizing textures (Scale: {texture_scale}, Interpolation: {texture_interp})...")
+        try:
+            # 高品質なリサイズのためにOpenCVを使用する
+            import cv2
+            import numpy as np
+            
+            # OpenCVの補間アルゴリズムのマッピング
+            cv2_interps = {
+                "bilinear": cv2.INTER_LINEAR,
+                "bicubic": cv2.INTER_CUBIC,
+                "lanczos": cv2.INTER_LANCZOS4,
+                "nearest": cv2.INTER_NEAREST
+            }
+            # config.jsonにlanczos等を指定可能にしておくが、デフォルトはbicubic
+            cv2_interp = cv2_interps.get(texture_interp.lower(), cv2.INTER_CUBIC)
+            
+            resized_count = 0
+            processed_paths = set()
+            
+            for img in bpy.data.images:
+                if not img.has_data or img.source != 'FILE' or not img.filepath:
+                    continue
+                
+                # パックされている場合は先にディスクへ展開し、実ファイルに対する編集を有効にする
+                was_packed = img.packed_file is not None
+                if was_packed:
+                    try:
+                        img.unpack(method='USE_LOCAL')
+                    except Exception as e:
+                        print(f"Warning: Failed to unpack {img.name}: {e}")
+                
+                abs_path = bpy.path.abspath(img.filepath)
+                if not os.path.exists(abs_path):
+                    continue
+                
+                # 重複処理の防止
+                if abs_path in processed_paths:
+                    img.reload()
+                    img.pack()
+                    continue
+                
+                try:
+                    import cv2
+                    import numpy as np
+                    
+                    success = process_texture_with_opencv(
+                        img,
+                        texture_scale, 
+                        cv2_interp, 
+                        use_bilateral_filter, 
+                        bilateral_d, 
+                        bilateral_sigma_color, 
+                        bilateral_sigma_space
+                    )
+                    
+                    if success:
+                        processed_paths.add(abs_path)
+                        # Blender内で画像をリロードして反映
+                        img.reload()
+                        # FBXに埋め込むため、画像をパックする
+                        img.pack()
+                        resized_count += 1
+                        
+                except Exception as e:
+                    print(f" - Warning: Failed to process {img.name} using OpenCV. {e}")
+            
+            print(f"Total resized textures: {resized_count}")
+        except ImportError:
+            # OpenCVがインストールされていない場合はPillowにフォールバック
+            print("Warning: OpenCV is not installed. Falling back to Pillow (PIL) for texture resize...")
 
     # FBXエクスポート (Unreal Engine用に最適化された設定)
     print("Exporting to Unreal Engine format...")
@@ -416,7 +431,9 @@ def main():
         bake_anim=True,
         bake_anim_use_all_bones=True,
         add_leaf_bones=False,
-        mesh_smooth_type='FACE'
+        mesh_smooth_type='FACE',
+        path_mode='COPY',       # テクスチャをFBX内にコピーして保持
+        embed_textures=True     # テクスチャをFBXファイル内にパッキングして埋め込む
     )
     
     print(f"Finished! Saved to {OUTPUT_FBX}")
