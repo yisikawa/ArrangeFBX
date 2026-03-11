@@ -23,14 +23,21 @@ echo.
 echo 選択されたファイル: "%INPUT_FBX%"
 echo.
 
-:: 2. Blenderのパスを探す (デフォルトまたは一般的なインストール先)
-:: Blenderの実行ファイルパス (環境変数にPATHが通っていない場合は絶対パスを指定)
-:: 例: set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.3\blender.exe"
-set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.3\blender.exe"
+:: 2. 出力ファイル名の決定 (入力名の末尾に _ue を付加)
+for %%F in ("%INPUT_FBX%") do (
+    set "OUTPUT_FBX=%%~dpnF_ue.fbx"
+)
 
-:: 3. Blenderスクリプトを実行
-echo [2/2] BlenderでFBX細分化と統合処理を実行中...
-"%BLENDER_PATH%" --background --python "%~dp0blender_run.py" -- -i "%INPUT_FBX%"
+:: 3. Blenderのパス設定
+:: 環境に合わせてパスを調整してください
+set "BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.4\blender.exe"
+
+:: 4. Blenderスクリプトを実行
+echo [2/2] BlenderでFBXの構造変換を実行中...
+echo 入力: "%INPUT_FBX%"
+echo 出力: "%OUTPUT_FBX%"
+echo.
+"%BLENDER_PATH%" --background --python "%~dp0blender_run.py" -- -i "%INPUT_FBX%" -o "%OUTPUT_FBX%"
 
 echo.
 echo =============================================
