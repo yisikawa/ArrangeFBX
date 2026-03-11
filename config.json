@@ -1,7 +1,7 @@
 {
     "input": {
         "fbx_path": "testFBX/female.fbx",
-        "use_custom_normals": true
+        "use_custom_normals": false
     },
     "output": {
         "fbx_path": "testFBX/female_ue.fbx",
@@ -33,6 +33,6 @@
         "axis_up": "Y",
         "bake_anim": true,
         "add_leaf_bones": false,
-        "mesh_smooth_type": "OFF"
+        "mesh_smooth_type": "FACE"
     }
 }
