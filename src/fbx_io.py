@@ -33,7 +33,9 @@ def export_fbx(filepath: str, settings: dict):
         axis_forward=settings.get("axis_forward", "-Z"),
         axis_up=settings.get("axis_up", "Y"),
         bake_anim=settings.get("bake_anim", True),
-        bake_anim_use_all_bones=settings.get("bake_anim", True),
+        bake_anim_use_all_bones=settings.get("bake_anim_use_all_bones", True),
+        bake_anim_use_nla_strips=settings.get("bake_anim_use_nla_strips", True),
+        bake_anim_use_all_actions=settings.get("bake_anim_use_all_actions", True),
         add_leaf_bones=settings.get("add_leaf_bones", False),
         mesh_smooth_type=settings.get("mesh_smooth_type", "FACE"),
     )
