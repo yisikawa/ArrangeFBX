@@ -12,7 +12,11 @@ class Config:
         "export": {
             "global_scale": 1.0, "scale_options": "FBX_SCALE_ALL",
             "axis_forward": "-Z", "axis_up": "Y",
-            "bake_anim": True, "add_leaf_bones": False, "mesh_smooth_type": "FACE"
+            "bake_anim": True, 
+            "bake_anim_use_all_bones": True,
+            "bake_anim_use_nla_strips": True,
+            "bake_anim_use_all_actions": True,
+            "add_leaf_bones": False, "mesh_smooth_type": "FACE"
         }
     }
     
