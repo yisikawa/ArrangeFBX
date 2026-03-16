@@ -18,14 +18,6 @@
         "level": 1,
         "apply_to_all_meshes": true
     },
-    "texture": {
-        "scale_factor": 4.0,
-        "resize_interpolation": "bicubic",
-        "use_bilateral_filter": true,
-        "bilateral_d": 9,
-        "bilateral_sigma_color": 75.0,
-        "bilateral_sigma_space": 75.0
-    },
     "export": {
         "global_scale": 1.0,
         "scale_options": "FBX_SCALE_ALL",
@@ -33,6 +25,6 @@
         "axis_up": "Y",
         "bake_anim": true,
         "add_leaf_bones": false,
-        "mesh_smooth_type": "FACE"
+        "mesh_smooth_type": "OFF"
     }
 }
