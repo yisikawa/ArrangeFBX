@@ -8,7 +8,7 @@ class Config:
         "input": {"fbx_path": "", "use_custom_normals": False},
         "output": {"fbx_path": "", "analysis_path": "", "format": "fbx_binary"},
         "bone_mapping": {"preset": "", "auto_guess_enabled": True, "side_detection_threshold": 0.05},
-        "subdivision": {"level": 0, "apply_to_all_meshes": True, "merge_threshold": 0.0001},
+        "subdivision": {"level": 0, "apply_to_all_meshes": True, "merge_enabled": True, "merge_threshold": 0.0001},
         "export": {
             "global_scale": 1.0, "scale_options": "FBX_SCALE_ALL",
             "axis_forward": "-Z", "axis_up": "Y",
@@ -77,6 +77,10 @@ class Config:
     @property
     def apply_to_all_meshes(self) -> bool:
         return self._data["subdivision"]["apply_to_all_meshes"]
+    
+    @property
+    def merge_enabled(self) -> bool:
+        return self._data["subdivision"].get("merge_enabled", True)
     
     @property
     def merge_threshold(self) -> float:

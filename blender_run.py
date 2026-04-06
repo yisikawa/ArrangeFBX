@@ -105,10 +105,11 @@ def main():
         return
         
     # 5. 近傍点の統合（サブディビジョン前に実行）
-    merge_threshold = config.merge_threshold
-    if merge_threshold > 0:
-        print(f"Merging vertices by distance (threshold={merge_threshold})...")
-        merge_by_distance(merge_threshold)
+    if config.merge_enabled:
+        merge_threshold = config.merge_threshold
+        if merge_threshold > 0:
+            print(f"Merging vertices by distance (threshold={merge_threshold})...")
+            merge_by_distance(merge_threshold)
     
     # 6. サブディビジョン
     print(f"Applying subdivision (level={config.subdivision_level})...")

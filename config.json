@@ -14,6 +14,7 @@
         "side_detection_threshold": 0.05
     },
     "subdivision": {
+        "merge_enabled": false,
         "merge_threshold": 0.0001,
         "level": 0,
         "apply_to_all_meshes": false
