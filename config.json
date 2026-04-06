@@ -10,13 +10,13 @@
     },
     "bone_mapping": {
         "preset": "presets/ue5_mannequin.json",
-        "auto_guess_enabled": true,
+        "auto_guess_enabled": false,
         "side_detection_threshold": 0.05
     },
     "subdivision": {
         "merge_threshold": 0.0001,
-        "level": 1,
-        "apply_to_all_meshes": true
+        "level": 0,
+        "apply_to_all_meshes": false
     },
     "export": {
         "global_scale": 1.0,
